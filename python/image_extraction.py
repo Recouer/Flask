@@ -100,6 +100,4 @@ def test(file_name):
         file.write(f"{flask}\n")
 
 
-
-
-test("test1.jpg")
+test("image_test.jpg")
