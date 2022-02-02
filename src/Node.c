@@ -7,13 +7,6 @@ static void transfuse_flask(int *outgoing_flask,
                             const int *move,
                             unsigned int flask_length);
 
-
-static int quantity_sent(const Node *node, int flask_number);
-
-static int has_one_color_only(const Node *node, int flaskIndex);
-
-static int flask_size(const Node *node, int flask_number);
-
 static void add_move(int ***available_moves,
                      int giving_flask,
                      int receiving_flask,
@@ -21,8 +14,8 @@ static void add_move(int ***available_moves,
                      int *available_moves_length);
 
 
-//region public function
 
+//region memory mgmt functions
 
 Node *create_node_root(char *configuration_path,
                        ssize_t string_length,
@@ -83,7 +76,6 @@ Node *create_node_root(char *configuration_path,
 
 	return new_node;
 }
-
 
 Node *create_node_children(Node *node,
                            int *move,
@@ -149,7 +141,6 @@ void delete_node_root(Node *node) {
 	free(node);
 }
 
-
 int *create_flask(const int *flask_values, unsigned int size) {
 	int *new_flask = (int *) malloc(size * sizeof(int));
 
@@ -160,11 +151,6 @@ int *create_flask(const int *flask_values, unsigned int size) {
 	return new_flask;
 }
 
-void delete_flask(int *flask) {
-	free(flask);
-}
-
-
 int *create_move(int giving_flask, int receiving_flask) {
 	int *new_move = (int *) malloc(2 * sizeof(int));
 	new_move[0] = giving_flask;
@@ -172,9 +158,53 @@ int *create_move(int giving_flask, int receiving_flask) {
 	return new_move;
 }
 
-void delete_move(int *move) {
-	free(move);
+//endregion
+
+//region control flow functions
+
+int finished(Node *node) {
+	for (int i = 0; i < node->game->number_of_flask; ++i) {
+		for (int j = node->game->flask_length - 2; j >= 0; --j) {
+			if (node->list_of_flask[i][j] != node->list_of_flask[i][j + 1]) {
+				return 0;
+			}
+		}
+	}
+	return 1;
 }
+
+int check_loop(Node *node) {
+	int **configuration_list[5];
+	Node *temp_node = node;
+	for (int i = 0; i < 5; ++i) {
+		configuration_list[i] = temp_node->list_of_flask;
+		if (temp_node->parent != NULL) {
+			temp_node = temp_node->parent;
+		}
+		else return 0;
+	}
+
+	int test1_1 = 1, test1_2 = 1, test1_3 = 1, test1_4 = 1;
+	for (int i = 0; i < node->game->number_of_flask; ++i) {
+		for (int j = 0; j < node->game->flask_length; ++j) {
+			test1_1 &= configuration_list[0][i][j] == configuration_list[1][i][j];
+			test1_2 &= configuration_list[0][i][j] == configuration_list[2][i][j];
+			test1_3 &= configuration_list[0][i][j] == configuration_list[3][i][j];
+			test1_4 &= configuration_list[0][i][j] == configuration_list[4][i][j];
+		}
+	}
+	int test1 = test1_1 || test1_2 || test1_3 || test1_4;
+
+
+	int test2 = node->list_of_moves[node->number_of_moves - 1] == node->list_of_moves[node->number_of_moves - 3] &&
+	            node->list_of_moves[node->number_of_moves - 2] == node->list_of_moves[node->number_of_moves - 4];
+
+	return test1 || test2;
+}
+
+//endregion
+
+//region Structure function
 
 void move(Node *node,
           int *move,
@@ -207,55 +237,16 @@ void move(Node *node,
 		                                                                  number_of_flasks);
 }
 
-int finished(Node *node) {
-	for (int i = 0; i < node->game->number_of_flask; ++i) {
-		for (int j = node->game->flask_length - 2; j >= 0; --j) {
-			if (node->list_of_flask[i][j] != node->list_of_flask[i][j + 1]) {
-				return 0;
-			}
-		}
-	}
-	return 1;
-}
-
-
-int check_loop(Node *node) {
-	int **configuration_list[5];
-	Node *temp_node = node;
-	for (int i = 0; i < 5; ++i) {
-		configuration_list[i] = temp_node->list_of_flask;
-		if (temp_node->parent != NULL) {
-			temp_node = temp_node->parent;
-		}
-		else return 0;
-	}
-
-	int test1_1 = 1, test1_2 = 1, test1_3 = 1, test1_4 = 1;
-	for (int i = 0; i < node->game->number_of_flask; ++i) {
-		for (int j = 0; j < node->game->flask_length; ++j) {
-			test1_1 &= configuration_list[0][i][j] == configuration_list[1][i][j];
-			test1_2 &= configuration_list[0][i][j] == configuration_list[2][i][j];
-			test1_3 &= configuration_list[0][i][j] == configuration_list[3][i][j];
-			test1_4 &= configuration_list[0][i][j] == configuration_list[4][i][j];
-		}
-	}
-	int test1 = test1_1 || test1_2 || test1_3 || test1_4;
-
-
-	int test2 = node->list_of_moves[node->number_of_moves - 1] == node->list_of_moves[node->number_of_moves - 3] &&
-	            node->list_of_moves[node->number_of_moves - 2] == node->list_of_moves[node->number_of_moves - 4];
-
-	return test1 || test2;
-}
-
 
 #define flask_is_full(flask, index) ((flask)[index][0] != 0)
+
 #define flask_is_empty(node, index) ((node)->list_of_flask[index][(node)->game->flask_length - 1] == 0)
+
 #define one_color_fill_flask(node, giving, receiving) (quantity_sent(node, giving) == \
 												((node)->game->flask_length - flask_size(node, receiving)))
+
 #define one_color_mount(node, giving, receiving) (flask_size(node, giving) == \
 												((node)->game->flask_length - flask_size(node, receiving)))
-
 
 int **available_moves(Node *node, int *number_of_moves) {
 
@@ -293,9 +284,9 @@ int **available_moves(Node *node, int *number_of_moves) {
 						         &available_moves_length);
 
 						if ((has_one_color_only(node, giving_flask) &&
-								one_color_mount(node, giving_flask, receiving_flask)) ||
-							(has_one_color_only(node, receiving_flask) &&
-								one_color_fill_flask(node, giving_flask, receiving_flask))) {
+						     one_color_mount(node, giving_flask, receiving_flask)) ||
+						    (has_one_color_only(node, receiving_flask) &&
+						     one_color_fill_flask(node, giving_flask, receiving_flask))) {
 
 							for (int i = 0; i < moves_count; ++i)
 								free(available_moves[i]);
@@ -321,21 +312,31 @@ int **available_moves(Node *node, int *number_of_moves) {
 	return available_moves;
 }
 
-void delete_available_moves(int **available_moves) {
-	free(available_moves);
-}
-
 //endregion
 
-static int has_one_color_only(const Node *node, int flaskIndex) {
+//region utilities functions
+
+int quantity_sent(const Node *node, int flask_number) {
+
+	int color = 0, counter = 0;
+	for (int i = 0; i < node->game->flask_length; ++i) {
+		if (!color && node->list_of_flask[flask_number][i] != 0)
+			color = node->list_of_flask[flask_number][i];
+
+		if (color != 0 && node->list_of_flask[flask_number][i] == color) counter++;
+	}
+	return counter;
+}
+
+int has_one_color_only(const Node *node, int flaskIndex) {
 	int flask_length = node->game->flask_length;
 	int *flask = node->list_of_flask[flaskIndex];
 
 	int retval = 1;
-	if (flask_length <= 2)
+	if (flask_length < 2)
 		perror("flask length too short\n");
 
-	for (int i = flask_length - 2; i >= 0 ; ++i) {
+	for (int i = flask_length - 2; i >= 0 ; --i) {
 		if (flask[i] == 0)
 			break;
 		retval &= flask[flask_length - 1] == flask[i];
@@ -343,6 +344,17 @@ static int has_one_color_only(const Node *node, int flaskIndex) {
 	return retval;
 }
 
+int flask_size(const Node* node, int flask_number) {
+	int i;
+	for (i = 0; i < node->game->flask_length; ++i)
+		if (node->list_of_flask[flask_number][i] != 0) break;
+
+	return node->game->flask_length - i;
+}
+
+//endregion
+
+//region static functions
 
 static void transfuse_flask(int *outgoing_flask,
                             int *incoming_flask,
@@ -372,28 +384,6 @@ static void transfuse_flask(int *outgoing_flask,
 	}
 }
 
-
-static int flask_size(const Node* node, int flask_number) {
-	int i;
-	for (i = 0; i < node->game->flask_length; ++i)
-		if (node->list_of_flask[flask_number][i] != 0) break;
-
-	return node->game->flask_length - i;
-}
-
-static int quantity_sent(const Node *node, int flask_number) {
-
-	int color = 0, counter = 0;
-	for (int i = 0; i < node->game->flask_length; ++i) {
-		if (!color && node->list_of_flask[flask_number][i] != 0)
-			color = node->list_of_flask[flask_number][i];
-
-		if (!color && node->list_of_flask[flask_number][i] == color) counter++;
-	}
-	return counter;
-}
-
-
 static void add_move(int ***available_moves,
                      int giving_flask,
                      int receiving_flask,
@@ -412,3 +402,4 @@ static void add_move(int ***available_moves,
 	(*available_moves)[(*moves_count)++] = create_move(giving_flask, receiving_flask);
 }
 
+//endregion

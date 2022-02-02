@@ -47,40 +47,16 @@ void node_info_print(Node *node) {
 		for (int k = 0; k < node->game->flask_length; ++k) {
 			printf("%d ", node->list_of_flask[j][k]);
 		}
-		printf("][ ");
+		if (j == node->game->number_of_flask - 1) printf(" ]\n\n");
+		else printf("][ ");
 	}
-	printf("]\n");
 }
 
-
-static int flask_size(const Node* node, int flask_number) {
-	int i;
-	for (i = 0; i < node->game->flask_length; ++i)
-		if (node->list_of_flask[flask_number][i] != 0) break;
-
-	return node->game->flask_length - i;
-}
-
-static int quantity_sent(const Node *node, int flask_number) {
-
-	int color = 0, counter = 0;
-	for (int i = 0; i < node->game->flask_length; ++i) {
-		if (!color && node->list_of_flask[flask_number][i] != 0)
-			color = node->list_of_flask[flask_number][i];
-
-		if (color != 0 && node->list_of_flask[flask_number][i] == color) counter++;
-	}
-	return counter;
-}
-
-
-
-#define receiver_accept_all(node, giving, receiving) (quantity_sent(node, giving) <= \
+#define receiver_accepts_all(node, giving, receiving) (quantity_sent(node, giving) <= \
 												((node)->game->flask_length - flask_size(node, receiving)))
 
-
 int move_is_valid(const Node* node, int* move, int** moves, int moves_length) {
-	if (!receiver_accept_all(node, move[0], move[1])) {
+	if (!receiver_accepts_all(node, move[0], move[1])) {
 		int a = 0;
 		for (int i = 0; i < moves_length; ++i) {
 			if (move[0] == moves[i][0]) a++;
@@ -105,11 +81,6 @@ void brut_force_solution(Game *game) {
 			return;
 		}
 
-		if (nodes_count == 366998) {
-			node_info_print(node);
-		}
-
-
 		if (check_loop(node)) {
 			node = go_up(node);
 			a--; loop++;
@@ -124,7 +95,7 @@ void brut_force_solution(Game *game) {
 				node = node->parent;
 			}
 
-			printf("%llu %llu %d", loop, nodes_count, a);
+			printf("%llu %llu %d\n", loop, nodes_count, a);
 			delete_tree(temp);
 			return;
 		}
@@ -139,7 +110,7 @@ void brut_force_solution(Game *game) {
 				if (move_is_valid(node, moves[j], moves, number_of_moves)) {
 					move(node, moves[j], node->game->flask_length, node->game->number_of_flask);
 					valid_moves++;
-				}
+				} else free(moves[j]);
 			}
 
 			if (valid_moves == 0) {
@@ -161,12 +132,11 @@ void brut_force_solution(Game *game) {
 		}
 	}
 
-
 	while (node->parent != NULL) {
 		node_info_print(node);
 		node = node->parent;
 	}
 
-	printf("%llu %llu %d", loop, nodes_count, a);
+	printf("%llu %llu %d\n", loop, nodes_count, a);
 	delete_tree(node);
 }
