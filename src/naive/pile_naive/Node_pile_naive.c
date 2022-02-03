@@ -1,4 +1,28 @@
-#include "Node.h"
+#include "../../Node.h"
+
+
+struct Game {
+	int number_of_flask;
+	int flask_length;
+	Node *root_node;
+};
+
+struct Node {
+	struct Game *game;
+
+	int **list_of_flask;
+
+	int **list_of_moves;
+	int number_of_moves;
+
+	struct Node *parent;
+
+	struct Node **children;
+	int checked_children;
+	int number_of_children;
+	int children_array_length;
+};
+
 
 //region static functions/structures
 

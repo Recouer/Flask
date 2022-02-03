@@ -4,11 +4,7 @@
 #include "Node.h"
 
 typedef struct Node Node;
-typedef struct Game {
-	int number_of_flask;
-	int flask_length;
-	Node *root_node;
-}Game;
+typedef struct Game Game;
 
 Game *create_game(char * configuration_path,
                   ssize_t string_length);

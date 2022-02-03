@@ -9,21 +9,8 @@
 
 #include "Game.h"
 
-typedef struct Node {
-	struct Game *game;
-
-	int **list_of_flask;
-
-	int **list_of_moves;
-	int number_of_moves;
-
-	struct Node *parent;
-
-	struct Node **children;
-	int checked_children;
-	int number_of_children;
-	int children_array_length;
-}Node;
+typedef struct Node Node;
+typedef struct Game Game;
 
 //region memory mgmt functions
 
