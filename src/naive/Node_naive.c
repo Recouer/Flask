@@ -346,6 +346,7 @@ int quantity_sent(const Node *node, int flask_number) {
 			color = node->list_of_flask[flask_number][i];
 
 		if (color != 0 && node->list_of_flask[flask_number][i] == color) counter++;
+		else break;
 	}
 	return counter;
 }

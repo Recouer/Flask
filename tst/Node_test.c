@@ -168,13 +168,11 @@ static int test_available_moves() {
 
 int main(int argc, char *argv[]) {
 
-	// test_create_node_root();
+	test_create_node_root();
 	test_create_node_children();
-	test_create_flask();
-	test_create_move();
 	test_check_loop();
 	test_finished();
-	// test_available_moves();
+	test_available_moves();
 	test_move();
 
 
