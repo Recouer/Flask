@@ -48,8 +48,9 @@ void move(Node *node,
           int flask_length,
           int number_of_flasks);
 
-
 int **available_moves(Node *node, int* number_of_moves);
+
+int assign_child_successful(Node *node);
 
 //endregion
 
