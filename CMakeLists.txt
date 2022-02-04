@@ -4,5 +4,5 @@ project(FlaskInC C)
 set(CMAKE_C_STANDARD 99)
 
 add_executable(FlaskInC main.c
-		src/memory/Node_memory.c src/Node.h
-		src/memory/Game_memory.c src/Game.h)
+		src/pile/Node_pile.c src/Node.h
+		src/pile/Game_pile.c src/Game.h)
