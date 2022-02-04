@@ -7,12 +7,16 @@ struct Game {
 	Node *root_node;
 };
 
-struct Node {
-	int number_of_flasks, flask_length;
-	int *list_of_flasks;
+typedef struct moves_list {
+	int *list;
+	int list_size, list_length;
+}moves_list;
 
-	int number_of_moves;
-	int *list_of_moves;
+struct Node {
+	int **flasks_list;
+	int number_of_flasks, flask_length;
+
+	moves_list *list_of_moves;
 
 	struct Node *parent;
 	struct Node *child;
@@ -20,6 +24,20 @@ struct Node {
 	int *children;
 	int checked_children, children_length;
 };
+
+
+void node_info_print(Node *node) {
+	for (int j = 0; j < node->list_of_moves->list_length; ++j)
+		printf("[%d %d]", node->list_of_moves->list[2 * j], node->list_of_moves->list[2 * j + 1]);
+	printf("\n[ ");
+	for (int j = 0; j < node->number_of_flasks; ++j) {
+		for (int k = 0; k < node->flask_length; ++k) {
+			printf("%d ", node->flasks_list[j][k]);
+		}
+		if (j == node->number_of_flasks - 1) printf(" ]\n\n");
+		else printf("][ ");
+	}
+}
 
 Game *create_game(char * configuration_path,
                   ssize_t string_length
@@ -39,6 +57,7 @@ static void delete_tree(Node *node) {
 	printf("deleting tree\n");
 	while (node->parent != NULL) {
 		Node *parent = node->parent;
+		node_info_print(node);
 		delete_node_children(node);
 		node = parent;
 	}
@@ -57,18 +76,6 @@ Node *go_up(Node *node) {
 	}
 }
 
-void node_info_print(Node *node) {
-	for (int j = 0; j < node->number_of_moves; ++j)
-		printf("[%d %d]", node->list_of_moves[2 * j], node->list_of_moves[2 * j + 1]);
-	printf("\n[ ");
-	for (int j = 0; j < node->number_of_flasks; ++j) {
-		for (int k = 0; k < node->flask_length; ++k) {
-			printf("%d ", node->list_of_flasks[4 * j + k]);
-		}
-		if (j == node->number_of_flasks - 1) printf(" ]\n\n");
-		else printf("][ ");
-	}
-}
 
 void brut_force_solution(Game *game) {
 
@@ -77,11 +84,6 @@ void brut_force_solution(Game *game) {
 	long long int loop = 0, nodes_count = 0;
 
 	for (int i = 0; i < 10000000; ++i) {
-
-		if (node == NULL) {
-			perror("something went wrong\n");
-			return;
-		}
 
 		if (check_loop(node)) {
 			node = go_up(node);
@@ -93,10 +95,6 @@ void brut_force_solution(Game *game) {
 			printf("\nfinished\n");
 			Node *temp = node;
 
-			while (node->parent != NULL) {
-				node_info_print(node);
-				node = node->parent;
-			}
 
 			printf("%llu %llu %d\n", loop, nodes_count, a);
 			delete_tree(temp);

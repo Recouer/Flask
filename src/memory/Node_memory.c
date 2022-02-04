@@ -5,18 +5,22 @@ struct Game {
 	Node *root_node;
 };
 
- struct Node {
-	 int number_of_flasks, flask_length;
-	 int *list_of_flasks;
+typedef struct moves_list {
+	int *list;
+	int list_size, list_length;
+} moves_list;
 
-	 int number_of_moves;
-	 int *list_of_moves;
+struct Node {
+	int **flasks_list;
+	int number_of_flasks, flask_length;
 
-	 struct Node *parent;
-	 struct Node *child;
+	moves_list *list_of_moves;
 
-	 int *children;
-	 int checked_children, children_length;
+	struct Node *parent;
+	struct Node *child;
+
+	int *children;
+	int checked_children, children_length;
 };
 
 static void assign_available_moves(Node *node);
@@ -42,8 +46,14 @@ Node *create_node_root(char *configuration_path,
                        struct Game *game
 ) {
 	Node *new_node = (Node *) malloc(sizeof(Node));
-	new_node->list_of_moves = NULL;
-	new_node->number_of_moves = 0;
+
+	moves_list *new_moves_list = (moves_list *) malloc(sizeof(moves_list));
+	new_moves_list->list_length = 0;
+	new_moves_list->list_size = 50;
+	new_moves_list->list = (int *) malloc(2 * new_moves_list->list_size * sizeof(int));
+
+	new_node->list_of_moves = new_moves_list;
+
 
 	new_node->children = NULL;
 	new_node->checked_children = 0;
@@ -74,21 +84,23 @@ Node *create_node_root(char *configuration_path,
 	}
 
 
-	int value;
-	int *list_of_flasks = (int *) malloc(4 * index * sizeof(int));
+	int *flask, value;
+	int **list_of_flasks = (int **) malloc(index * sizeof(int *));
 	for (int i = 0; i < index; ++i) {
 		token = strtok(temp_buffer[i], delim);
+		flask = (int *) malloc(4 * sizeof(int));
 		for (int j = 0; j < 4; ++j) {
 			if (token != NULL) {
 				value = atoi(token);
 				token = strtok(NULL, delim);
-				list_of_flasks[4 * i + j] = value;
+				flask[j] = value;
 			} else
-				list_of_flasks[4 * i + j] = 0;
+				flask[j] = 0;
 		}
+		list_of_flasks[i] = flask;
 	}
 
-	new_node->list_of_flasks = list_of_flasks;
+	new_node->flasks_list = list_of_flasks;
 	new_node->flask_length = 4;
 	new_node->number_of_flasks = index;
 
@@ -101,7 +113,8 @@ Node *create_node_children(Node *node,
                            int number_of_flasks
 ) {
 	Node *new_node = (Node *) malloc(sizeof(Node));
-	new_node->list_of_flasks = (int *) malloc(flask_length * number_of_flasks * sizeof(int));
+
+	new_node->flasks_list = (int **) malloc(number_of_flasks * sizeof(int *));
 	new_node->number_of_flasks = node->number_of_flasks;
 	new_node->flask_length = node->flask_length;
 
@@ -112,29 +125,27 @@ Node *create_node_children(Node *node,
 	transfuse_flask(giving_flask, receiving_flask, node, move, flask_length);
 
 	for (int i = 0; i < number_of_flasks; ++i) {
-		if (i == move[0]) {
-			for (int j = 0; j < flask_length; ++j)
-				new_node->list_of_flasks[4 * i + j] = giving_flask[j];
-		}
-		else if (i == move[1]) {
-			for (int j = 0; j < flask_length; ++j)
-				new_node->list_of_flasks[4 * i + j] = receiving_flask[j];
-		}
-		else {
-			for (int j = 0; j < flask_length; ++j)
-				new_node->list_of_flasks[4 * i + j] = node->list_of_flasks[4 * i + j];
-		}
+		if (i == move[0]) new_node->flasks_list[i] = create_flask(giving_flask, flask_length);
+		else if (i == move[1]) new_node->flasks_list[i] = create_flask(receiving_flask, flask_length);
+		else new_node->flasks_list[i] = node->flasks_list[i];
 	}
 
-
-	new_node->number_of_moves = node->number_of_moves + 1;
-	new_node->list_of_moves = (int *) malloc(2 * new_node->number_of_moves * sizeof(int));
-	for (int i = 0; i < node->number_of_moves; ++i) {
-		new_node->list_of_moves[2 * i] = node->list_of_moves[2 * i];
-		new_node->list_of_moves[2 * i + 1] = node->list_of_moves[2 * i + 1];
+	if (node->list_of_moves->list_length < node->list_of_moves->list_size) {
+		new_node->list_of_moves = node->list_of_moves;
+		new_node->list_of_moves->list[2 * node->list_of_moves->list_length] = move[0];
+		new_node->list_of_moves->list[2 * node->list_of_moves->list_length + 1] = move[1];
+	} else {
+		int *temp = new_node->list_of_moves->list;
+		new_node->list_of_moves->list_size *= 2;
+		new_node->list_of_moves->list = (int *) malloc(2 * new_node->list_of_moves->list_size * sizeof(int));
+		for (int i = 0; i < new_node->list_of_moves->list_length; ++i) {
+			new_node->list_of_moves->list[2 * i] = temp[2 * i];
+			new_node->list_of_moves->list[2 * i + 1] = temp[2 * i + 1];
+		}
+		new_node->list_of_moves->list[2 * new_node->list_of_moves->list_length] = move[0];
+		new_node->list_of_moves->list[2 * new_node->list_of_moves->list_length + 1] = move[1];
 	}
-	new_node->list_of_moves[2 * node->number_of_moves] = move[0];
-	new_node->list_of_moves[2 * node->number_of_moves + 1] = move[1];
+	new_node->list_of_moves->list_length++;
 
 	new_node->children = NULL;
 	new_node->checked_children = 0;
@@ -144,18 +155,37 @@ Node *create_node_children(Node *node,
 }
 
 void delete_node_children(Node *node) {
-	free(node->list_of_flasks);
+	free(node->flasks_list[node->list_of_moves->list[2 * node->list_of_moves->list_length - 1]]);
+	free(node->flasks_list[node->list_of_moves->list[2 * node->list_of_moves->list_length - 2]]);
+	free(node->flasks_list);
+	node->list_of_moves->list_length--;
 	free(node->children);
-	free(node->list_of_moves);
 	free(node);
 }
 
 void delete_node_root(Node *node) {
-	free(node->list_of_flasks);
+	for (int i = 0; i < node->number_of_flasks; ++i)
+		free(node->flasks_list[i]);
+	free(node->flasks_list);
+
 	free(node->children);
+
+	free(node->list_of_moves->list);
 	free(node->list_of_moves);
 	free(node);
 }
+
+
+int *create_flask(const int *flask_values, unsigned int size) {
+	int *new_flask = (int *) malloc(size * sizeof(int));
+
+	for (int i = 0; i < size; ++i) {
+		new_flask[i] = flask_values[i];
+	}
+
+	return new_flask;
+}
+
 
 //endregion
 
@@ -164,7 +194,7 @@ void delete_node_root(Node *node) {
 int finished(Node *node) {
 	for (int i = 0; i < node->number_of_flasks; ++i) {
 		for (int j = node->flask_length - 2; j >= 0; --j) {
-			if (node->list_of_flasks[4 * i + j] != node->list_of_flasks[4 * i + j + 1]) {
+			if (node->flasks_list[i][j] != node->flasks_list[i][j + 1]) {
 				return 0;
 			}
 		}
@@ -173,31 +203,33 @@ int finished(Node *node) {
 }
 
 int check_loop(Node *node) {
-	int *configuration_list[4];
+	int **configuration_list[4];
 	Node *temp_node = node;
 	for (int i = 0; i < 4; ++i) {
-		configuration_list[i] = temp_node->list_of_flasks;
+		configuration_list[i] = temp_node->flasks_list;
 		if (temp_node->parent != NULL) {
 			temp_node = temp_node->parent;
-		}
-		else return 0;
+		} else return 0;
 	}
 
 	int test1_1 = 1, test1_2 = 1, test1_3 = 1;
 	for (int i = 0; i < node->number_of_flasks; ++i) {
 		for (int j = 0; j < node->flask_length; ++j) {
-			test1_1 &= configuration_list[0][4 * i + j] == configuration_list[1][4 * i + j];
-			test1_2 &= configuration_list[0][4 * i + j] == configuration_list[2][4 * i + j];
-			test1_3 &= configuration_list[0][4 * i + j] == configuration_list[3][4 * i + j];
+			test1_1 &= configuration_list[0][i][j] == configuration_list[1][i][j];
+			test1_2 &= configuration_list[0][i][j] == configuration_list[2][i][j];
+			test1_3 &= configuration_list[0][i][j] == configuration_list[3][i][j];
 		}
 	}
 	int test1 = test1_1 || test1_2 || test1_3;
 
-
-	int test2 = node->list_of_moves[2 * (node->number_of_moves - 1) + 1] == node->list_of_moves[2 * (node->number_of_moves - 3) + 1] &&
-	            node->list_of_moves[2 * (node->number_of_moves - 1)] == node->list_of_moves[2 * (node->number_of_moves - 3)] &&
-	            node->list_of_moves[2 * (node->number_of_moves - 2) + 1] == node->list_of_moves[2 * (node->number_of_moves - 4) + 1] &&
-	            node->list_of_moves[2 * (node->number_of_moves - 2)] == node->list_of_moves[2 * (node->number_of_moves - 4)];
+	int test2 = node->list_of_moves->list[2 * (node->list_of_moves->list_length - 1) + 1] ==
+	            node->list_of_moves->list[2 * (node->list_of_moves->list_length - 3) + 1] &&
+	            node->list_of_moves->list[2 * (node->list_of_moves->list_length - 1)] ==
+	            node->list_of_moves->list[2 * (node->list_of_moves->list_length - 3)] &&
+	            node->list_of_moves->list[2 * (node->list_of_moves->list_length - 2) + 1] ==
+	            node->list_of_moves->list[2 * (node->list_of_moves->list_length - 4) + 1] &&
+	            node->list_of_moves->list[2 * (node->list_of_moves->list_length - 2)] ==
+	            node->list_of_moves->list[2 * (node->list_of_moves->list_length - 4)];
 
 	return test1 || test2;
 }
@@ -208,13 +240,13 @@ int check_loop(Node *node) {
 
 
 #define receiver_accepts_all(node, giving, receiving) (quantity_sent(node, giving) <= \
-												((node)->flask_length - flask_size(node, receiving)))
+                                                ((node)->flask_length - flask_size(node, receiving)))
 
-static int move_is_valid(const Node* node, int* move) {
+static int move_is_valid(const Node *node, int *move) {
 	if (!receiver_accepts_all(node, move[0], move[1])) {
 		int a = 0;
-		for (int i = 0; i < node->number_of_moves; ++i)
-			if (move[0] == node->list_of_moves[2 * i]) a++;
+		for (int i = 0; i < node->list_of_moves->list_length; ++i)
+			if (move[0] == node->list_of_moves->list[2 * i]) a++;
 		return a == 2;
 	}
 	return 1;
@@ -241,12 +273,12 @@ int assign_child_successful(Node *node) {
 	return 1;
 }
 
-#define flask_is_full(node, index) ((node)->list_of_flasks[4 * (index)] != 0)
-#define flask_is_empty(node, index) ((node)->list_of_flasks[4 * (index) + (node)->flask_length - 1] == 0)
+#define flask_is_full(node, index) ((node)->flasks_list[index][0] != 0)
+#define flask_is_empty(node, index) ((node)->flasks_list[index][(node)->flask_length - 1] == 0)
 #define one_color_fill_flask(node, giving, receiving) (quantity_sent(node, giving) == \
-												((node)->flask_length - flask_size(node, receiving)))
+                                                ((node)->flask_length - flask_size(node, receiving)))
 #define one_color_mount(node, giving, receiving) (flask_size(node, giving) == \
-												((node)->flask_length - flask_size(node, receiving)))
+                                                ((node)->flask_length - flask_size(node, receiving)))
 
 static void assign_available_moves(Node *node) {
 
@@ -268,8 +300,8 @@ static void assign_available_moves(Node *node) {
 
 					int going_flask_color = 0, coming_flask_color = 0;
 					for (int k = 0; k < node->flask_length; ++k) {
-						if (!going_flask_color) going_flask_color = node->list_of_flasks[4 * receiving_flask + k];
-						if (!coming_flask_color) coming_flask_color = node->list_of_flasks[4 * giving_flask + k];
+						if (!going_flask_color) going_flask_color = node->flasks_list[receiving_flask][k];
+						if (!coming_flask_color) coming_flask_color = node->flasks_list[giving_flask][k];
 					}
 
 					if (going_flask_color == coming_flask_color && giving_flask != receiving_flask) {
@@ -315,10 +347,10 @@ int quantity_sent(const Node *node, int flask_number) {
 
 	int color = 0, counter = 0;
 	for (int i = 0; i < node->flask_length; ++i) {
-		if (!color && node->list_of_flasks[4 * flask_number + i] != 0)
-			color = node->list_of_flasks[4 * flask_number + i];
+		if (!color && node->flasks_list[flask_number][i] != 0)
+			color = node->flasks_list[flask_number][i];
 
-		if (color != 0 && node->list_of_flasks[4 * flask_number + i] == color) counter++;
+		if (color != 0 && node->flasks_list[flask_number][i] == color) counter++;
 		else break;
 	}
 	return counter;
@@ -326,13 +358,13 @@ int quantity_sent(const Node *node, int flask_number) {
 
 int has_one_color_only(const Node *node, int flaskIndex) {
 	int flask_length = node->flask_length;
-	int *flask = &node->list_of_flasks[4 * flaskIndex];
+	int *flask = node->flasks_list[flaskIndex];
 
 	int retval = 1;
 	if (flask_length < 2)
 		perror("flask length too short\n");
 
-	for (int i = flask_length - 2; i >= 0 ; --i) {
+	for (int i = flask_length - 2; i >= 0; --i) {
 		if (flask[i] == 0)
 			break;
 		retval &= flask[flask_length - 1] == flask[i];
@@ -340,10 +372,10 @@ int has_one_color_only(const Node *node, int flaskIndex) {
 	return retval;
 }
 
-int flask_size(const Node* node, int flask_number) {
+int flask_size(const Node *node, int flask_number) {
 	int i;
 	for (i = 0; i < node->flask_length; ++i)
-		if (node->list_of_flasks[4 * flask_number + i] != 0) break;
+		if (node->flasks_list[flask_number][i] != 0) break;
 
 	return node->flask_length - i;
 }
@@ -358,8 +390,8 @@ static void transfuse_flask(int *outgoing_flask,
                             const int *move,
                             unsigned int flask_length) {
 	for (int i = 0; i < flask_length; ++i) {
-		outgoing_flask[i] = node->list_of_flasks[4 * move[0] + i];
-		incoming_flask[i] = node->list_of_flasks[4 * move[1] + i];
+		outgoing_flask[i] = node->flasks_list[move[0]][i];
+		incoming_flask[i] = node->flasks_list[move[1]][i];
 	}
 
 	int available_space;
