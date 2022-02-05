@@ -20,7 +20,7 @@ struct Node {
 	struct Node *child;
 
 	int *children;
-	int checked_children, children_length;
+	int checked_children, children_length, children_size;
 };
 
 
@@ -86,6 +86,8 @@ Node *get_Node(Node *node) {
 	if (global_pile->Node_pile_length == 0) {
 		new_node = (Node *) malloc(sizeof(Node));
 		new_node->flasks_list = (int **) malloc(node->number_of_flasks * sizeof(int *));
+		new_node->children = NULL;
+		new_node->children_size = 4;
 	} else new_node = global_pile->Node_pile[--global_pile->Node_pile_length];
 
 	return new_node;
@@ -130,12 +132,7 @@ static void transfuse_flask(int *outgoing_flask,
                             const int *move,
                             unsigned int flask_length);
 
-static void add_move(int **available_moves,
-                     int giving_flask,
-                     int receiving_flask,
-                     int *moves_count,
-                     int *available_moves_length);
-
+static void add_move(Node *node, int giving_flask, int receiving_flask);
 
 
 //region memory mgmt functions
@@ -157,6 +154,7 @@ Node *create_node_root(char *configuration_path,
 	new_node->children = NULL;
 	new_node->checked_children = 0;
 	new_node->children_length = 0;
+	new_node->children_size = 4;
 
 	new_node->parent = NULL;
 	new_node->child = NULL;
@@ -245,7 +243,6 @@ Node *create_node_children(Node *node,
 	}
 	new_node->list_of_moves->list_length++;
 
-	new_node->children = NULL;
 	new_node->checked_children = 0;
 	new_node->children_length = 0;
 
@@ -343,18 +340,16 @@ int check_loop(Node *node) {
 static int move_is_valid(const Node *node, int *move) {
 	if (!receiver_accepts_all(node, move[0], move[1])) {
 		int a = 0;
-		for (int i = 0; i < node->list_of_moves->list_length; ++i)
-			if (move[0] == node->list_of_moves->list[2 * i]) a++;
+		for (int i = 0; i < node->children_length; ++i)
+			if (move[0] == node->children[2 * i]) a++;
 		return a == 2;
 	}
 	return 1;
 }
 
-
 int assign_child_successful(Node *node) {
-	if (node->children == NULL) {
+	if (node->children_length == 0)
 		assign_available_moves(node);
-	}
 
 	if (node->checked_children >= node->children_length) return 0;
 
@@ -379,8 +374,8 @@ int assign_child_successful(Node *node) {
 
 static void assign_available_moves(Node *node) {
 
-	int available_moves_length = 4, moves_count = 0;
-	int *available_moves = (int *) malloc(2 * available_moves_length * sizeof(int));
+	if (node->children == NULL)
+		node->children = (int *) malloc(2 * node->children_size * sizeof(int));
 
 	for (int giving_flask = 0; giving_flask < node->number_of_flasks; ++giving_flask) {
 		for (int receiving_flask = 0; receiving_flask < node->number_of_flasks; ++receiving_flask) {
@@ -402,38 +397,22 @@ static void assign_available_moves(Node *node) {
 					}
 
 					if (going_flask_color == coming_flask_color && giving_flask != receiving_flask) {
-						add_move(&available_moves,
-						         giving_flask,
-						         receiving_flask,
-						         &moves_count,
-						         &available_moves_length);
+						add_move(node, giving_flask, receiving_flask);
 
 						if ((has_one_color_only(node, giving_flask) &&
 						     one_color_mount(node, giving_flask, receiving_flask)) ||
 						    (has_one_color_only(node, receiving_flask) &&
 						     one_color_fill_flask(node, giving_flask, receiving_flask))) {
 
-							free(available_moves);
-
-							int *shortcut_list = (int *) malloc(2 * sizeof(int));
-							shortcut_list[0] = giving_flask, shortcut_list[1] = receiving_flask;
 							node->children_length = 1;
-							node->children = shortcut_list;
+							node->children[0] = giving_flask, node->children[1] = receiving_flask;
 							return;
 						}
 					}
-				} else {
-					add_move(&available_moves,
-					         giving_flask,
-					         receiving_flask,
-					         &moves_count,
-					         &available_moves_length);
-				}
+				} else add_move(node, giving_flask, receiving_flask);
 			}
 		}
 	}
-	node->children_length = moves_count;
-	node->children = available_moves;
 }
 
 //endregion
@@ -444,14 +423,15 @@ int quantity_sent(const Node *node, int flask_number) {
 
 	int color = 0, counter = 0;
 	for (int i = 0; i < node->flask_length; ++i) {
-		if (!color && node->flasks_list[flask_number][i] != 0)
+		if (color == 0 && node->flasks_list[flask_number][i] != 0)
 			color = node->flasks_list[flask_number][i];
 
 		if (color != 0 && node->flasks_list[flask_number][i] == color) counter++;
-		else break;
+		if (color != 0 && node->flasks_list[flask_number][i] != color) break;
 	}
 	return counter;
 }
+
 
 int has_one_color_only(const Node *node, int flaskIndex) {
 	int flask_length = node->flask_length;
@@ -509,25 +489,21 @@ static void transfuse_flask(int *outgoing_flask,
 	}
 }
 
-static void add_move(int **available_moves,
-                     int giving_flask,
-                     int receiving_flask,
-                     int *moves_count,
-                     int *available_moves_length) {
+static void add_move(Node *node, int giving_flask, int receiving_flask) {
 
-	if (*moves_count >= *available_moves_length) {
-		*available_moves_length *= 2;
-		int *temp = *available_moves;
-		*available_moves = (int *) malloc(2 * *available_moves_length * sizeof(int));
-		for (int k = 0; k < *moves_count; ++k) {
-			(*available_moves)[2 * k] = temp[2 * k];
-			(*available_moves)[2 * k + 1] = temp[2 * k + 1];
+	if (node->children_length >= node->children_size) {
+		node->children_size *= 2;
+		int *temp = node->children;
+		node->children = (int *) malloc(2 * node->children_size * sizeof(int));
+		for (int k = 0; k < node->children_length; ++k) {
+			(node->children)[2 * k] = temp[2 * k];
+			(node->children)[2 * k + 1] = temp[2 * k + 1];
 		}
 		free(temp);
 	}
-	(*available_moves)[2 * (*moves_count)] = giving_flask;
-	(*available_moves)[2 * (*moves_count) + 1] = receiving_flask;
-	(*moves_count)++;
+	(node->children)[2 * (node->children_length)] = giving_flask;
+	(node->children)[2 * (node->children_length) + 1] = receiving_flask;
+	node->children_length++;
 }
 
 //endregion

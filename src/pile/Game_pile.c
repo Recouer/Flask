@@ -98,11 +98,8 @@ void brut_force_solution(Game *game) {
 
 		if (finished(node)) {
 			printf("\nfinished\n");
-			Node *temp = node;
-
-
 			printf("%llu %llu %d\n", loop, nodes_count, a);
-			delete_tree(temp);
+			delete_tree(node);
 			return;
 		}
 
@@ -115,12 +112,6 @@ void brut_force_solution(Game *game) {
 			a--;
 		}
 	}
-
-	while (node->parent != NULL) {
-		node_info_print(node);
-		node = node->parent;
-	}
-
 	printf("%llu %llu %d\n", loop, nodes_count, a);
 	delete_tree(node);
 }
