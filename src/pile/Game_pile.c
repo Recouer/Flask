@@ -68,7 +68,6 @@ Node *go_up(Node *node) {
 		Node *temp = node;
 		node = node->parent;
 		delete_node_children(temp);
-		node->checked_children++;
 		return node;
 	} else {
 		delete_tree(node);
