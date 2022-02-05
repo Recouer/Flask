@@ -254,9 +254,8 @@ static int move_is_valid(const Node *node, int *move) {
 
 
 int assign_child_successful(Node *node) {
-	if (node->children == NULL) {
+	if (node->children == NULL)
 		assign_available_moves(node);
-	}
 
 	if (node->checked_children >= node->children_length) return 0;
 
@@ -351,7 +350,7 @@ int quantity_sent(const Node *node, int flask_number) {
 			color = node->flasks_list[flask_number][i];
 
 		if (color != 0 && node->flasks_list[flask_number][i] == color) counter++;
-		else break;
+		if (color != 0 && node->flasks_list[flask_number][i] != color) break;
 	}
 	return counter;
 }
