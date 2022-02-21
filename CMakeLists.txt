@@ -3,6 +3,13 @@ project(FlaskInC C)
 
 set(CMAKE_C_STANDARD 99)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
+
+
 add_executable(FlaskInC main.c
-		src/pile/Node_pile.c src/Node.h
-		src/pile/Game_pile.c src/Game.h)
+		src/concurrent/Node_concurrent.c src/Node.h
+		src/concurrent/Game_concurrent.c src/Game.h)
+
+target_link_libraries(FlaskInC PRIVATE Threads::Threads)
