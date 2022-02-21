@@ -1,6 +1,12 @@
 #include "../Game.h"
 #include "../Node.h"
 
+#include <pthread.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 
 struct Node_scheduler {
 	Node ***Node_list;
@@ -27,8 +33,9 @@ struct Node {
 	moves_list *list_of_moves;
 
 	struct Node *parent;
+	struct Node *child;
 
-	struct Node **children;
+	int *children;
 	int children_checked, children_length, children_size;
 };
 
@@ -54,6 +61,7 @@ Game *create_game(char * configuration_path,
 	new_game->Sched = (struct Node_scheduler *) malloc( sizeof(struct Node_scheduler));
 	new_game->Sched->Node_list_size = 50;
 	new_game->Sched->prio_list_size = (int *) malloc(new_game->Sched->Node_list_size * sizeof(int));
+	new_game->Sched->prio_list_length = (int *) malloc(new_game->Sched->Node_list_size * sizeof(int));
 
 	new_game->Sched->Node_list = (Node ***) malloc(new_game->Sched->Node_list_size * sizeof(Node **));
 	for (int i = 0; i < new_game->Sched->Node_list_size; ++i) {
@@ -70,6 +78,12 @@ Game *create_game(char * configuration_path,
 
 void delete_game(Game *game) {
 	delete_node_root(game->root_node);
+	for (int i = 0; i < game->Sched->Node_list_size; ++i)
+		free(game->Sched->Node_list[i]);
+	free(game->Sched->prio_list_size);
+	free(game->Sched->prio_list_length);
+	free(game->Sched->Node_list);
+	free(game->Sched);
 	free(game);
 }
 
@@ -81,6 +95,7 @@ static void delete_tree(Node *node) {
 		delete_node_children(node);
 		node = parent;
 	}
+	printf("finished deleting tree\n");
 }
 
 Node *go_up(Node *node) {
@@ -95,7 +110,18 @@ Node *go_up(Node *node) {
 	}
 }
 
-void brut_force_solution(Game *game) {
+
+//region Thread Algorithm
+
+struct thread_info {
+	pthread_t thread_id;
+	Game *game;
+};
+
+
+static void *thread_DFS(void *args) {
+	struct thread_info *tinfo = args;
+	Game *game = tinfo->game;
 
 	Node *node = game->root_node;
 	int a = 0;
@@ -105,7 +131,7 @@ void brut_force_solution(Game *game) {
 
 		if (node == NULL) {
 			perror("something went wrong\n");
-			return;
+			return NULL;
 		}
 
 		if (check_loop(node)) {
@@ -118,12 +144,12 @@ void brut_force_solution(Game *game) {
 			printf("\nfinished\n");
 			printf("%llu %llu %d\n", loop, nodes_count, a);
 			delete_tree(node);
-			return;
+			return NULL;
 		}
 
 		if (assign_child_successful(node)) {
 			nodes_count++;
-			node = node->children[node->children_checked];
+			node = node->child;
 			a++;
 		} else {
 			node = go_up(node);
@@ -132,4 +158,49 @@ void brut_force_solution(Game *game) {
 	}
 	printf("%llu %llu %d\n", loop, nodes_count, a);
 	delete_tree(node);
+	return NULL;
 }
+
+
+//endregion
+
+//region Main Algorithm
+
+void brut_force_solution(Game *game) {
+	int s, num_threads;
+	pthread_attr_t attr;
+	void *res;
+
+	long number_of_processors = sysconf(_SC_NPROCESSORS_ONLN);
+	number_of_processors = 1;
+	num_threads = (int) number_of_processors;
+
+	if (pthread_attr_init(&attr) != 0) perror("pthread_attr_init");
+	struct thread_info *tinfo = calloc(num_threads, sizeof(*tinfo));
+	if (tinfo == NULL) perror("calloc");
+
+
+	for (int tnum = 0; tnum < num_threads; tnum++) {
+		tinfo[tnum].game = game;
+
+		s = pthread_create(&tinfo[tnum].thread_id, &attr,
+		                   &thread_DFS, &tinfo[tnum]);
+		if (s != 0)
+			perror("pthread_create");
+	}
+
+
+	if (pthread_attr_destroy(&attr) != 0) perror("pthread_attr_destroy");
+
+
+	for (int tnum = 0; tnum < num_threads; tnum++) {
+		s = pthread_join(tinfo[tnum].thread_id, &res);
+		if (s != 0)
+			perror("pthread_join");
+		free(res);
+	}
+
+	free(tinfo);
+}
+
+//endregion

@@ -17,8 +17,9 @@ struct Node {
 	moves_list *list_of_moves;
 
 	struct Node *parent;
+	struct Node *child;
 
-	struct Node **children;
+	int *children;
 	int children_checked, children_length, children_size;
 };
 
@@ -356,7 +357,7 @@ int assign_child_successful(Node *node) {
 
 	int move[2] = {node->children[2 * node->children_checked],
 	               node->children[2 * node->children_checked + 1]};
-	node->children = create_node_children(node, move, node->flask_length, node->number_of_flasks);
+	node->child = create_node_children(node, move, node->flask_length, node->number_of_flasks);
 	node->children_checked++;
 	return 1;
 }
