@@ -64,7 +64,7 @@ Node *create_node_root(char *configuration_path,
 
 	ssize_t char_read;
 	int fd, index = 0;
-	char buff[256], temp_buffer[20][100] = {};
+	char buff[256], temp_buffer[20][100] = {0};
 	char delim[6] = " ,[]", line_delim[2] = "\n";
 
 	if ((fd = open(configuration_path, 0)) == 0)
@@ -245,8 +245,8 @@ int check_loop(Node *node) {
 static int move_is_valid(const Node *node, int *move) {
 	if (!receiver_accepts_all(node, move[0], move[1])) {
 		int a = 0;
-		for (int i = 0; i < node->list_of_moves->list_length; ++i)
-			if (move[0] == node->list_of_moves->list[2 * i]) a++;
+		for (int i = 0; i < node->children_length; ++i)
+			if (move[0] == node->children[2 * i]) a++;
 		return a == 2;
 	}
 	return 1;
@@ -261,7 +261,6 @@ int assign_child_successful(Node *node) {
 
 	while (!move_is_valid(node, &node->children[2 * node->checked_children])) {
 		node->checked_children++;
-
 		if (node->checked_children >= node->children_length) return 0;
 	}
 

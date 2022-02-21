@@ -56,7 +56,7 @@ Node *create_node_root(char *configuration_path,
 
 	ssize_t char_read;
 	int fd, index = 0;
-	char buff[256], temp_buffer[20][100] = {};
+	char buff[256], temp_buffer[20][100] = {0};
 	char delim[6] = " ,[]", line_delim[2] = "\n";
 
 	if ((fd = open(configuration_path, 0)) == 0)
@@ -346,7 +346,7 @@ int quantity_sent(const Node *node, int flask_number) {
 			color = node->list_of_flask[flask_number][i];
 
 		if (color != 0 && node->list_of_flask[flask_number][i] == color) counter++;
-		if (color != 0 && node->flasks_list[flask_number][i] != color) break;
+		if (color != 0 && node->list_of_flask[flask_number][i] != color) break;
 	}
 	return counter;
 }

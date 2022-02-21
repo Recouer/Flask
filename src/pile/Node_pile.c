@@ -161,7 +161,7 @@ Node *create_node_root(char *configuration_path,
 
 	ssize_t char_read;
 	int fd, index = 0;
-	char buff[256], temp_buffer[20][100] = {};
+	char buff[256], temp_buffer[20][100] = {0};
 	char delim[6] = " ,[]", line_delim[2] = "\n";
 
 	if ((fd = open(configuration_path, 0)) == 0)
